@@ -1,28 +1,25 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+   <split-pane :min-percent='20' :default-percent='80' split="horizontal">
+      <template slot="paneL">
+        <Render/>
+      </template>
+      <template slot="paneR">
+        <Tools />
+      </template>
+    </split-pane>
   </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import Tools from './components/Tools.vue';
+import Render from './components/Render.vue';
 
 export default {
   name: 'App',
   components: {
-    HelloWorld
+    Tools,
+    Render
   }
 }
 </script>
-
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-</style>

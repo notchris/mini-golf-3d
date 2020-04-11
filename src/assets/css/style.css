@@ -1,0 +1,301 @@
+* {
+    box-sizing: border-box;
+    text-rendering: optimizeLegibility;
+    font-kerning: auto;
+    outline: 0 !important;
+}
+
+html {
+    font-family: sans-serif;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+}
+
+html, body, #app, .render {
+    width: 100%;
+    height: 100%;
+}
+.container {
+    width: 100%;
+    height: 100%;
+}
+
+#test {
+    width: 100%;
+    height: 100%;
+}
+
+.tabs {
+    width: 100%;
+    height: 28px;
+    background: #DDD;
+    overflow: hidden;
+    border-bottom: 1px solid #666;
+}
+
+.tabs > button {
+    height: 28px;
+    line-height: 28px;
+    font-size: 13px;
+    color: #000;
+    border: none !important;
+    border-radius: 0 !important;
+    cursor: pointer;
+    background: none;
+}
+
+.tabs > button[disabled]{
+    background-color: #666 !important;
+    color: #EEE !important;
+}
+
+.btnRender.start {
+    color: green !important;
+}
+.btnRender.stop {
+    color: red !important;
+}
+
+.pane {
+    width: 100%;
+    height: calc(100% - 28px);
+    font-size: 14px;
+    position: relative;
+}
+
+iframe {
+    position: absolute !important;
+}
+
+.tools {
+    width: 100%;
+    height: 100%;
+}
+
+.pane.build .left {
+    width: 100px;
+    height: 100%;
+    float: left;
+    border-right: 1px solid #666;
+    background: #CCC;
+}
+.pane.build .center {
+    width: 30px;
+    height: 100%;
+    float: left;
+    border-right: 1px solid #666;
+    background: #AAA;
+}
+.pane.build .right {
+    width: calc(100% - 130px);
+    height: 100%;
+    float: right;
+    background: #BBB;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    padding: 0.25em;
+}
+
+.pane.build .left button {
+    width: 100%;
+    background: #CCC;
+    border-bottom: 1px solid black;
+}
+
+.pane.build .center button {
+    width: 100%;
+    height: 30px;
+    background: #AAA;
+    border-bottom: 1px solid #000;
+}
+.shapes {
+    width: 50%;
+    height: 100%;
+    float: left;
+}
+.entities {
+    width: 50%;
+    height: 100%;
+    float: left;
+}
+.title {
+    width: 100%;
+    height: 24px;
+    font-size: 14px;
+    background: #999;
+    padding-left: 0.2em;
+    line-height: 24px;
+}
+
+.pane.course .left {
+    width: 50%;
+    height: 100%;
+    float: left;
+    border-right: 1px solid #666;
+    background: #CCC;
+}
+.pane.course .right {
+    width: 50%;
+    height: 100%;
+    float: left;
+    background: #BBB;
+}
+.stored {
+    width: 100%;
+    height: 26px;
+    line-height: 26px;
+    background: #333;
+    color: #DDD;
+}
+
+.helper {
+    width: 60px;
+    height: auto;
+    float: left;
+    border: 1px solid #999;
+    margin-right: 4px;
+    overflow: hidden;
+}
+
+.helper.active {
+    border: 1px solid #FF0;
+}
+.helper img {
+    width: 100%;
+    height: 100%;
+}
+.helper label {
+    font-size: 12px;
+    width: 100%;
+    text-align: center;
+    display: block;
+}
+
+
+.pane.materials .left {
+    width: 100px;
+    height: 100%;
+    float: left;
+    border-right: 1px solid #666;
+    background: #CCC;
+}
+.pane.materials .center {
+    width: 30px;
+    height: 100%;
+    float: left;
+    border-right: 1px solid #666;
+    background: #AAA;
+}
+.pane.materials .right {
+    width: calc(100% - 130px);
+    height: 100%;
+    float: right;
+    background: #BBB;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    padding: 0.25em;
+}
+.pane.materials .left button {
+    width: 100%;
+    background: #CCC;
+    border-bottom: 1px solid black;
+}
+
+.pane.materials .center button {
+    width: 100%;
+    height: 30px;
+    background: #AAA;
+    border-bottom: 1px solid #000;
+}
+
+.material {
+    width: 60px;
+    height: 60px;
+    border: 1px solid #000;
+    float: left;
+}
+.material.active {
+    border: 2px solid yellow;
+}
+.material img {
+    width: 100%;
+    height: 100%;
+}
+.material label {
+    font-size: 12px;
+    width: 100%;
+    text-align: center;
+    display: block;
+}
+
+.pane.entities .left {
+    width: 100px;
+    height: 100%;
+    float: left;
+    border-right: 1px solid #666;
+    background: #CCC;
+}
+.pane.entities .center {
+    width: 30px;
+    height: 100%;
+    float: left;
+    border-right: 1px solid #666;
+    background: #AAA;
+}
+.pane.entities .right {
+    width: calc(100% - 130px);
+    height: 100%;
+    float: right;
+    background: #BBB;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    padding: 0.25em;
+}
+
+.pane.entities .left button {
+    width: 100%;
+    background: #CCC;
+    border-bottom: 1px solid black;
+}
+
+.pane.entities .center button {
+    width: 100%;
+    height: 30px;
+    background: #AAA;
+    border-bottom: 1px solid #000;
+}
+
+
+
+/* Default Table Style */
+  table {
+    border: 1px solid #333;
+    border-collapse: collapse;
+    width: 100%;
+  }
+  table th,
+  table td {
+    border: 1px solid #333;
+  }
+
+  .color {
+      width: 100%;
+      height: 100%;
+      position: relative;
+  }
+
+  .color > button {
+      width: 30px;
+      height: 30px;
+      border: 2px solid black;
+  }
+
+  .vc-chrome {
+      position: absolute;
+      top: 0;
+      left: 30px;
+      z-index: 9999;
+  }
