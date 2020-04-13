@@ -2,7 +2,7 @@
 
 A 3D Mini-Golf game / editor, built with three.js & cannon.js.
 
-<img width="300" height="300 src="https://github.com/notchris/mini-golf-3d"/>
+![3D Mini Golf](https://i.imgur.com/yl9u9QV.png)
 
 ## Project setup
 ```
