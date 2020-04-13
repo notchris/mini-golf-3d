@@ -4,7 +4,8 @@ import * as CANNON from 'cannon-es';
 //import OrbitControls from 'orbit-controls-es6';
 import ShaderToyMaterial from 'three-shadertoy-material';
 import GeometryHelper from './GeometryHelper';
-
+import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader';
+const loader = new FBXLoader();
 CameraControls.install( { THREE: THREE } );
 
 const clock = new THREE.Clock();
@@ -27,7 +28,7 @@ export default class Game {
         this.ball = null;
         this.ballMesh = null;
         this.tempDir = new THREE.Vector3();
-        this.size = 0.15;
+        this.size = 0.12;
         this.damping = 0.5;
         this.force = 2;
 
@@ -51,12 +52,12 @@ export default class Game {
         // World
         this.world = new CANNON.World();
         this.world.gravity.set(0,-10,0);
-        this.world.quatNormalizeSkip = 0;
-        this.world.quatNormalizeFast = false;
-        this.world.defaultContactMaterial.contactEquationStiffness = 1e9;
+        //this.world.quatNormalizeSkip = 0;
+        //this.world.quatNormalizeFast = false;
+        this.world.defaultContactMaterial.contactEquationStiffness = 1e7;
         this.world.defaultContactMaterial.contactEquationRelaxation = 4;
 
-        let solver = new CANNON.GSSolver();
+        /*let solver = new CANNON.GSSolver();
         solver.iterations = 20;
         solver.tolerance = 0;
         let split = true;
@@ -65,12 +66,14 @@ export default class Game {
         } else {
             this.world.solver = solver;
         }
-        this.world.broadphase = new CANNON.NaiveBroadphase();
+        this.world.broadphase = new CANNON.NaiveBroadphase();*/
+        this.world.solver.iterations = 8;
 
         
         // Render, Scene, Camera
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.scene = new THREE.Scene()
+        this.scene.fog = new THREE.FogExp2(0xFFFFFF, 0.03);
         this.camera = new THREE.PerspectiveCamera(75, document.querySelector('#test').getBoundingClientRect().width / document.querySelector('#test').getBoundingClientRect().height, 0.1, 10000);
         this.scene.add(this.camera);
 
@@ -128,9 +131,15 @@ export default class Game {
         this.ball.linearDamping = 0.9;
         this.world.addBody(this.ball);
 
+        this.ball.addEventListener("collide", (e) => {
+            if (e.body.id === 'hole') {
+                console.log('hole')
+            }
+        });
+
         this.ballMesh = new THREE.Mesh(
             new THREE.SphereBufferGeometry(this.size, 32, 32),
-            new THREE.MeshPhongMaterial({
+            new THREE.MeshToonMaterial({
                 color: '#F1F1F1',
                 flatShading: true
             })
@@ -151,32 +160,53 @@ export default class Game {
         if (this.holePosition) {
             const holeObject = new THREE.Object3D();
             const pole = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.05, 0.05, 4, 16, 16),
-                new THREE.MeshBasicMaterial({color: 0xBBBBBB}));
+                new THREE.CylinderGeometry(0.05, 0.05, 2.5, 16, 16),
+                new THREE.MeshToonMaterial({color: 0xBBBBBB}));
 
             const geom = new THREE.PlaneGeometry(1.25, 0.7, 1, 1)
             const flag = new THREE.Mesh(
                 geom,
-                new THREE.MeshBasicMaterial({color: 0xff0000})
+                new THREE.MeshToonMaterial({color: 0xff0000})
             );
 
             flag.rotation.y = -Math.PI/2;
-            flag.position.y = 2.5;
+            flag.position.y = 1.25;
             flag.position.z += 0.7
                 
             holeObject.add(pole);
             holeObject.add(flag);
-            pole.translateY(1.1)
-            
-            const sensor = new THREE.Mesh(
-                new THREE.BoxBufferGeometry(1, 0.1, 1),
-                new THREE.MeshBasicMaterial({color: 0x00ff00})
+            pole.translateY(0.4)
+
+            let base = new THREE.Mesh(
+                new THREE.BoxBufferGeometry(1, 0.5, 1),
+                new THREE.MeshStandardMaterial({color: 0x000000})
             )
-            sensor.position.y -= 1;
-            holeObject.add(sensor);
-            sensor.visible = false;
+            holeObject.add(base);
+            base.translateY(-1.2)
+            
+            
+            let g = new GeometryHelper('hole').clone()
+            let m = new THREE.Mesh(g, new THREE.MeshPhongMaterial({color: 0x00ff00}))
+            this.scene.add(m);
+            m.position.copy(this.holePosition)
+            let verts = g.vertices.map((v) => new CANNON.Vec3(v.x, v.y, v.z));
+            let faces = g.faces.map((f) => [f.a, f.b, f.c]);
+            let shape = new CANNON.ConvexPolyhedron({
+                vertices: verts,
+                faces: faces
+            });
+            shape.collisionFilterGroup = 1;
+            shape.collisionFilterMask = -1;
+            let sensor = new CANNON.Body({ mass: 0 });
+            sensor.addShape(shape);
+            this.world.addBody(sensor);
+            sensor.position.copy(this.holePosition);
+            sensor.id = 'hole'
+
             this.scene.add(holeObject);
             holeObject.position.copy(this.holePosition);
+            
+
         }
     
         
@@ -191,7 +221,8 @@ export default class Game {
             false
         )
         this.cameraControls.rotateTo( 0, 0, false);
-        this.cameraControls.fitTo( this.bounds, true, { paddingTop: 8, paddingLeft: 8, paddingBottom: 8, paddingRight: 8 } )
+        this.cameraControls.fitTo( this.bounds, true, { paddingTop: 4, paddingLeft: 4, paddingBottom: 4, paddingRight: 4 } )
+        this.cameraControls.rotate( 0, 30 * THREE.Math.DEG2RAD, true );
 
 
         // Sky
@@ -270,8 +301,30 @@ export default class Game {
 
         // window resize event
 
+        window.addEventListener('resize', () => {
+            this.resize();
+        })
+
         this.animate = this.animate.bind(this);
         this.animate();
+    }
+
+    loadCharacter (position) {
+        loader.load('./models/characterMedium.fbx', (object) => {
+            console.log(object)
+            object.scale.set(0.005, 0.005, 0.005);
+            object.position.copy(position);
+            object.translateY(-0.8);
+            object.rotation.y += Math.PI/2;
+            object.children[0].material = new THREE.MeshToonMaterial({
+                map: new THREE.TextureLoader().load('./models/survivorMaleB.png')
+            })
+            object.children[0].material.skinning = true;
+            object.children[0].castShadow = true;
+            
+            //object.children[0].material.map = new THREE.TextureLoader().load('./models/survivorMaleB.png')
+            this.scene.add(object)
+        });
     }
 
     parseObjects (objects) {
@@ -285,6 +338,7 @@ export default class Game {
                         this.spawn = new THREE.Vector3(parseFloat(s[0]), parseFloat(s[1]), parseFloat(s[2]))
                         this.ball.position.copy(this.spawn);
                         this.ballMesh.position.copy(this.spawn);
+                        this.loadCharacter(this.spawn);
                         break;
                     case 'point':
                         p = object.position.split(' ');
@@ -300,7 +354,21 @@ export default class Game {
             } else {
                 let s = object.position.split(' ');
                 let pos = new THREE.Vector3(parseFloat(s[0]), parseFloat(s[1]), parseFloat(s[2]))
-                const geometry = new GeometryHelper(object.type);
+                let geometry = new GeometryHelper(object.type);
+                
+                switch (object.type) {
+                    case 'block_hole':
+                        geometry = new GeometryHelper('block');
+                        break;
+                    case 'half_block_hole':
+                        geometry = new GeometryHelper('half_block');
+                        break;
+                    case 'floor_hole':
+                        geometry = new GeometryHelper('floor');
+                        break;
+                    default:
+                        break;
+                }
                 let g = geometry.clone();
                 let verts = g.vertices.map((v) => new CANNON.Vec3(v.x, v.y, v.z));
                 let faces = g.faces.map((f) => [f.a, f.b, f.c]);
@@ -317,14 +385,37 @@ export default class Game {
                 body.quaternion.copy(r);
                 this.world.addBody(body);
                 this.bodies.push(body);
+                let mat = new THREE.MeshToonMaterial({
+                    color: '#EEEEEE',
+                    map: textures.filter((t) => t.id === object.texture).length ?
+                    textures.filter((t) => t.id === object.texture)[0].texture : null
+                })
+                if (object.type === 'half_wall' ||
+                    object.type === 'wall'
+                ) {
+                    mat.polygonOffset = true;
+                    mat.polygonOffsetFactor = -0.1;
+                }
+                switch (object.type) {
+                    case 'block_hole':
+                        g = new GeometryHelper('block_hole');
+                        break;
+                    case 'half_block_hole':
+                        g = new GeometryHelper('half_block_hole');
+                        break;
+                    case 'floor_hole':
+                        g = new GeometryHelper('floor_hole');
+                        break;
+                    default:
+                        break;
+                }
+
+
                 let mesh = new THREE.Mesh(
                     g,
-                    new THREE.MeshStandardMaterial({
-                        color: '#EEEEEE',
-                        map: textures.filter((t) => t.id === object.texture).length ?
-                        textures.filter((t) => t.id === object.texture)[0].texture : null,
-                    })
+                    mat
                 );
+
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 this.obj.add(mesh);
@@ -359,16 +450,21 @@ export default class Game {
             this.scene.remove(this.arrowHelper);
             this.arrowHelper = null;
         }
+        // Hide arrow if ball moving
+        if (this.ballMoving) return;
         this.arrowHelper = new THREE.ArrowHelper(
             this.tempDir,
             new THREE.Vector3().copy(this.ballMesh.position),
-            3,
-            0xff0000
+            1,
+            0xff0000,
+            0.25,
+            0.25
         );
         this.scene.add(this.arrowHelper);
     }
 
     hitBall(force) {
+        if (this.ballMoving) return;
         this.ball.velocity.set(this.tempDir.x * force / 2, 0, this.tempDir.z * force / 2)
     }
 
@@ -381,6 +477,12 @@ export default class Game {
             m.position.copy(this.bodies[i].position);
             m.quaternion.copy(this.bodies[i].quaternion);
         });
+
+        if (this.ball.velocity.x < 0.05 && this.ball.velocity.z < 0.05) {
+            this.ballMoving = false;
+        } else {
+            this.ballMoving = true;
+        }
     }
 
     render () {

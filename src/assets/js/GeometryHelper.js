@@ -82,9 +82,22 @@ export default class GeometryHelper {
                   new Vector3( -1, -1, 1 )
                 ];
                 break;
+            case 'hole':
+                points = [
+                new Vector3( 1, 1, 1 ),
+                new Vector3( 1, 1, -1 ),
+                new Vector3( -1, 1, -1 ),
+                new Vector3( -1, 1, 1 ),
+                new Vector3( 1, -1, 1 ),
+                new Vector3( 1, -1, -1 ),
+                new Vector3( -1, -1, -1 ),
+                new Vector3( -1, -1, 1 )
+                ];
+                break;
             default:
                 break;
         }
+
         if (this.type === 'block_hole' || this.type === 'half_block_hole' || this.type === 'floor_hole') {
             const shape = new Shape()
             shape.moveTo( -1,-1 );
@@ -92,7 +105,7 @@ export default class GeometryHelper {
             shape.lineTo( 1, 1 );
             shape.lineTo( 1, -1 );
             shape.lineTo(-1, -1);
-            const holePath = new Path().moveTo(0,0).absarc(0, 0, 0.3, 0, Math.PI * 2, true);
+            const holePath = new Path().moveTo(0,0).absarc(0, 0, 0.2, 0, Math.PI * 2, true);
             shape.holes.push(holePath);
             this.geometry = new ExtrudeGeometry(shape,{
               steps: 2,
@@ -114,6 +127,11 @@ export default class GeometryHelper {
         if (this.type === 'floor_hole') {
             this.geometry.scale(1, 0.1, 1);
             this.geometry.translate(0, -0.9, 0);
+        }
+
+        if (this.type === 'hole') {
+            this.geometry.scale(0.1, 0.1, 0.1);
+            this.geometry.translate(0, -0.9, 0)
         }
 
         switch (this.type) {
