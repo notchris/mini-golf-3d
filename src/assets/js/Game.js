@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import CameraControls from 'camera-controls';
 import * as CANNON from 'cannon-es';
-//import OrbitControls from 'orbit-controls-es6';
-import ShaderToyMaterial from 'three-shadertoy-material';
+import Sky from './Sky';
+import GolfBall from './GolfBall';
 import GeometryHelper from './GeometryHelper';
 import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader';
 const loader = new FBXLoader();
@@ -52,21 +52,8 @@ export default class Game {
         // World
         this.world = new CANNON.World();
         this.world.gravity.set(0,-10,0);
-        //this.world.quatNormalizeSkip = 0;
-        //this.world.quatNormalizeFast = false;
         this.world.defaultContactMaterial.contactEquationStiffness = 1e7;
         this.world.defaultContactMaterial.contactEquationRelaxation = 4;
-
-        /*let solver = new CANNON.GSSolver();
-        solver.iterations = 20;
-        solver.tolerance = 0;
-        let split = true;
-        if (split) {
-            this.world.solver = new CANNON.SplitSolver(solver);
-        } else {
-            this.world.solver = solver;
-        }
-        this.world.broadphase = new CANNON.NaiveBroadphase();*/
         this.world.solver.iterations = 8;
 
         
@@ -120,34 +107,6 @@ export default class Game {
         //this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         //this.controls.mouseButtons.ORBIT = 2;
         
-        // Ball
-        let s = new CANNON.Sphere(this.size);
-        this.ball = new CANNON.Body({ mass: 5 });
-        this.ball.addShape(s);
-        this.spawn.y += 10;
-        this.ball.position.copy(this.spawn);
-        this.ball.velocity.set(0,0,0);
-        this.ball.angularVelocity.set(0,0,0);
-        this.ball.linearDamping = 0.9;
-        this.world.addBody(this.ball);
-
-        this.ball.addEventListener("collide", (e) => {
-            if (e.body.id === 'hole') {
-                console.log('hole')
-            }
-        });
-
-        this.ballMesh = new THREE.Mesh(
-            new THREE.SphereBufferGeometry(this.size, 32, 32),
-            new THREE.MeshToonMaterial({
-                color: '#F1F1F1',
-                flatShading: true
-            })
-        );
-        this.ballMesh.castShadow = true;
-        this.ballMesh.position.copy(this.spawn)
-        this.scene.add(this.ballMesh);
-        this.ballMesh.geometry.computeBoundingBox();
 
         this.obj = new THREE.Object3D();
 
@@ -205,9 +164,16 @@ export default class Game {
 
             this.scene.add(holeObject);
             holeObject.position.copy(this.holePosition);
-            
-
         }
+
+        // Sky
+        const sky = new Sky(500);
+        this.scene.add(sky);
+
+        // Ball
+        this.ball = new GolfBall(0.12, this.spawn);
+        this.world.addBody(this.ball.body);
+        this.scene.add(this.ball.mesh);
     
         
         // Set Camera
@@ -224,59 +190,6 @@ export default class Game {
         this.cameraControls.fitTo( this.bounds, true, { paddingTop: 4, paddingLeft: 4, paddingBottom: 4, paddingRight: 4 } )
         this.cameraControls.rotate( 0, 30 * THREE.Math.DEG2RAD, true );
 
-
-        // Sky
-        const box = new THREE.Mesh(
-            new THREE.SphereBufferGeometry(500, 32, 32),
-            new ShaderToyMaterial(`
-                vec3 getSky(vec2 uv) {
-                    float atmosphere = sqrt(1.0-uv.y);
-                    vec3 skyColor = vec3(0.0,0.4,1.0);
-                    
-                    float scatter = pow(1.0 / iResolution.y,1.0 / 15.0);
-                    scatter = 1.0 - clamp(scatter,0.8,1.0);
-                    
-                    vec3 scatterColor = mix(vec3(1.0),vec3(1.0,0.3,0.0) * 1.5,scatter);
-                    return mix(skyColor,vec3(scatterColor),atmosphere / 1.3);
-                }
-                vec3 getSun(vec2 uv) {
-                    float sun = 1.0 - distance(uv,iMouse.xy / iResolution.y);
-                    sun = clamp(sun,0.0,1.0);
-                    
-                    float glow = sun;
-                    glow = clamp(glow,0.0,1.0);
-                    
-                    sun = pow(sun,200.0);
-                    sun *= 200.0;
-                    sun = clamp(sun,0.0,1.0);
-                    
-                    glow = pow(glow,6.0) * 1.0;
-                    glow = pow(glow,(uv.y));
-                    glow = clamp(glow,0.0,1.0);
-                    
-                    sun *= pow(dot(uv.y, uv.y), 1.0 / 1.65);
-                    
-                    glow *= pow(dot(uv.y, uv.y), 1.0 / 2.0);
-                    
-                    sun += glow;
-                    
-                    vec3 sunColor = vec3(1.0,0.6,0.05) * sun;
-                    
-                    return vec3(sunColor);
-                }
-    
-                void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
-                    vec2 uv = fragCoord.xy / iResolution.y;
-                    
-                    vec3 sky = getSky(uv);
-                    vec3 sun = getSun(uv);
-                    
-                    fragColor = vec4(sky + sun,1.0);
-                }
-            `)
-        );
-        box.material.side = THREE.DoubleSide;
-        this.scene.add(box);
 
         // Render
         this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -311,7 +224,6 @@ export default class Game {
 
     loadCharacter (position) {
         loader.load('./models/characterMedium.fbx', (object) => {
-            console.log(object)
             object.scale.set(0.005, 0.005, 0.005);
             object.position.copy(position);
             object.translateY(-0.8);
@@ -336,8 +248,6 @@ export default class Game {
                     case 'spawn':
                         s = object.position.split(' ');
                         this.spawn = new THREE.Vector3(parseFloat(s[0]), parseFloat(s[1]), parseFloat(s[2]))
-                        this.ball.position.copy(this.spawn);
-                        this.ballMesh.position.copy(this.spawn);
                         this.loadCharacter(this.spawn);
                         break;
                     case 'point':
@@ -441,20 +351,20 @@ export default class Game {
     }
 
     updateArrow (target) {
-        if (!this.scene) return;
-        target.y = this.ballMesh.position.y;
+        if (!this.ball) return;
+        target.y = this.ball.mesh.position.y;
         this.tempDir = new THREE.Vector3();
-        this.tempDir.subVectors(target, this.ballMesh.position).normalize();
+        this.tempDir.subVectors(target, this.ball.mesh.position).normalize();
 
         if (this.arrowHelper) {
             this.scene.remove(this.arrowHelper);
             this.arrowHelper = null;
         }
         // Hide arrow if ball moving
-        if (this.ballMoving) return;
+        if (this.ball.moving) return;
         this.arrowHelper = new THREE.ArrowHelper(
             this.tempDir,
-            new THREE.Vector3().copy(this.ballMesh.position),
+            new THREE.Vector3().copy(this.ball.mesh.position),
             1,
             0xff0000,
             0.25,
@@ -464,24 +374,24 @@ export default class Game {
     }
 
     hitBall(force) {
-        if (this.ballMoving) return;
-        this.ball.velocity.set(this.tempDir.x * force / 2, 0, this.tempDir.z * force / 2)
+        if (this.ball.moving) return;
+        this.ball.body.velocity.set(this.tempDir.x * force / 2, 0, this.tempDir.z * force / 2)
     }
 
     updatePhysics () {
         this.world.step(1/60);
-        this.ballMesh.position.copy(this.ball.position);
-        this.ballMesh.quaternion.copy(this.ball.quaternion);
+        this.ball.mesh.position.copy(this.ball.body.position);
+        this.ball.mesh.quaternion.copy(this.ball.body.quaternion);
 
         this.meshes.forEach((m, i) => {
             m.position.copy(this.bodies[i].position);
             m.quaternion.copy(this.bodies[i].quaternion);
         });
 
-        if (this.ball.velocity.x < 0.05 && this.ball.velocity.z < 0.05) {
-            this.ballMoving = false;
+        if (this.ball.body.velocity.x < 0.05 && this.ball.body.velocity.z < 0.05) {
+            this.ball.moving = false;
         } else {
-            this.ballMoving = true;
+            this.ball.moving = true;
         }
     }
 
