@@ -1,4 +1,4 @@
-import { Sphere, Body } from 'cannon-es';
+import { Sphere, Body, Material } from 'cannon-es';
 import { SphereBufferGeometry, MeshToonMaterial, Mesh } from 'three';
 
 export default class GolfBall {
@@ -7,10 +7,10 @@ export default class GolfBall {
         this.spawn = spawn;
         this.moving = false;
 
+        this.physics = new Material();
         const shape = new Sphere(this.size);
-        this.body = new Body({ mass: 5 });
+        this.body = new Body({ mass: 5, material: this.physics });
         this.body.addShape(shape);
-        
 
         // Ball collides with hole sensor
         this.body.addEventListener("collide", (e) => {
@@ -41,5 +41,10 @@ export default class GolfBall {
         this.body.angularVelocity.set(0,0,0);
         this.body.linearDamping = 0.9;
         this.mesh.position.copy(this.spawn);
+    }
+
+    hit (direction, force) {
+        if (this.moving) return;
+        this.body.velocity.set(direction.x * force / 2, 0, direction.z * force / 2)
     }
 }

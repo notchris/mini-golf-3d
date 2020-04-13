@@ -3,11 +3,12 @@ import CameraControls from 'camera-controls';
 import * as CANNON from 'cannon-es';
 import Sky from './Sky';
 import GolfBall from './GolfBall';
+import GolfHole from './GolfHole';
 import GeometryHelper from './GeometryHelper';
 import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader';
-const loader = new FBXLoader();
 CameraControls.install( { THREE: THREE } );
 
+const loader = new FBXLoader();
 const clock = new THREE.Clock();
 
 const textures = [{
@@ -15,6 +16,8 @@ const textures = [{
     texture: new THREE.TextureLoader().load( 'textures/fairway.png' ),
     anisotropy: 16
 }];
+
+const wallMaterial = new CANNON.Material();
 
 export default class Game {
     constructor(element, objects) {
@@ -26,11 +29,7 @@ export default class Game {
         this.ground = null;
         this.groundMesh = null;
         this.ball = null;
-        this.ballMesh = null;
         this.tempDir = new THREE.Vector3();
-        this.size = 0.12;
-        this.damping = 0.5;
-        this.force = 2;
 
         // Spawn
         this.spawn = new THREE.Vector3(0, 0, 0);
@@ -56,7 +55,6 @@ export default class Game {
         this.world.defaultContactMaterial.contactEquationRelaxation = 4;
         this.world.solver.iterations = 8;
 
-        
         // Render, Scene, Camera
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.scene = new THREE.Scene()
@@ -83,14 +81,8 @@ export default class Game {
         this.dlight.shadow.camera.far = 1000;
         this.scene.add(this.dlight);
 
-        // Objects
 
         // Ground
-        this.ground = new CANNON.Body({ mass: 0 });
-        this.ground.addShape(new CANNON.Plane());
-        this.ground.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
-        this.world.addBody(this.ground);
-
         this.groundMesh = new THREE.Mesh(
             new THREE.PlaneBufferGeometry(100, 100),
             new THREE.MeshBasicMaterial({
@@ -98,16 +90,11 @@ export default class Game {
                 side: THREE.DoubleSide
             })
         );
-
         this.scene.add(this.groundMesh);
         this.groundMesh.geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         this.groundMesh.visible = false;
-
-        // Controls
-        //this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        //this.controls.mouseButtons.ORBIT = 2;
         
-
+        // Object container
         this.obj = new THREE.Object3D();
 
         // Create objects
@@ -116,55 +103,10 @@ export default class Game {
         this.bounds = new THREE.Box3().setFromObject(this.obj);
         
         // Create Hole / Flag
-        if (this.holePosition) {
-            const holeObject = new THREE.Object3D();
-            const pole = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.05, 0.05, 2.5, 16, 16),
-                new THREE.MeshToonMaterial({color: 0xBBBBBB}));
-
-            const geom = new THREE.PlaneGeometry(1.25, 0.7, 1, 1)
-            const flag = new THREE.Mesh(
-                geom,
-                new THREE.MeshToonMaterial({color: 0xff0000})
-            );
-
-            flag.rotation.y = -Math.PI/2;
-            flag.position.y = 1.25;
-            flag.position.z += 0.7
-                
-            holeObject.add(pole);
-            holeObject.add(flag);
-            pole.translateY(0.4)
-
-            let base = new THREE.Mesh(
-                new THREE.BoxBufferGeometry(1, 0.5, 1),
-                new THREE.MeshStandardMaterial({color: 0x000000})
-            )
-            holeObject.add(base);
-            base.translateY(-1.2)
-            
-            
-            let g = new GeometryHelper('hole').clone()
-            let m = new THREE.Mesh(g, new THREE.MeshPhongMaterial({color: 0x00ff00}))
-            this.scene.add(m);
-            m.position.copy(this.holePosition)
-            let verts = g.vertices.map((v) => new CANNON.Vec3(v.x, v.y, v.z));
-            let faces = g.faces.map((f) => [f.a, f.b, f.c]);
-            let shape = new CANNON.ConvexPolyhedron({
-                vertices: verts,
-                faces: faces
-            });
-            shape.collisionFilterGroup = 1;
-            shape.collisionFilterMask = -1;
-            let sensor = new CANNON.Body({ mass: 0 });
-            sensor.addShape(shape);
-            this.world.addBody(sensor);
-            sensor.position.copy(this.holePosition);
-            sensor.id = 'hole'
-
-            this.scene.add(holeObject);
-            holeObject.position.copy(this.holePosition);
-        }
+        const hole = new GolfHole(this.holePosition);
+        this.world.addBody(hole.sensor);
+        this.scene.add(hole.object);
+        this.scene.add(hole.holeMesh);
 
         // Sky
         const sky = new Sky(500);
@@ -174,6 +116,10 @@ export default class Game {
         this.ball = new GolfBall(0.12, this.spawn);
         this.world.addBody(this.ball.body);
         this.scene.add(this.ball.mesh);
+        
+        // Ball Physics
+        const materialTest = new CANNON.ContactMaterial(wallMaterial, this.ball.physics, { friction: 0.0, restitution: 0.7 });
+        this.world.addContactMaterial(materialTest);
     
         
         // Set Camera
@@ -209,15 +155,15 @@ export default class Game {
         });
 
         this.renderer.domElement.addEventListener('click', () => {
-            this.hitBall(20);
+            this.ball.hit(this.tempDir, 20);
         })
 
         // window resize event
-
         window.addEventListener('resize', () => {
             this.resize();
         })
 
+        // animate
         this.animate = this.animate.bind(this);
         this.animate();
     }
@@ -288,7 +234,13 @@ export default class Game {
                 });
                 shape.collisionFilterGroup = 1;
                 shape.collisionFilterMask = -1;
-                let body = new CANNON.Body({ mass: 0 });
+                let physicsMat;
+                if (object.type === 'wall' || object.type === 'half_wall') {
+                    physicsMat = wallMaterial
+                } else {
+                    physicsMat = null;
+                }
+                let body = new CANNON.Body({ mass: 0, material: physicsMat });
                 body.addShape(shape);
                 body.position.copy(pos);
                 let r = new THREE.Quaternion().setFromEuler(object.rotation)
@@ -371,11 +323,6 @@ export default class Game {
             0.25
         );
         this.scene.add(this.arrowHelper);
-    }
-
-    hitBall(force) {
-        if (this.ball.moving) return;
-        this.ball.body.velocity.set(this.tempDir.x * force / 2, 0, this.tempDir.z * force / 2)
     }
 
     updatePhysics () {
